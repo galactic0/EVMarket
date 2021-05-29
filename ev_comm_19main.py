@@ -19,7 +19,7 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+from issuecounter import countInstancefreq
 
 def show_wordcloud(data, title = None):
     wordcloud = WordCloud(
@@ -95,29 +95,7 @@ data["nb_chars"] = data["Review"].apply(lambda x: len(x))
 # add number of words column
 data["nb_words"] = data["Review"].apply(lambda x: len(x.split(" ")))
 
-# create doc2vec vector columns
-documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(data["review_clean"].apply(lambda x: x.split(" ")))]
 
-# train a Doc2Vec model with our text data
-model = Doc2Vec(documents, vector_size=5, window=2, min_count=1, workers=4)
-
-# transform each document into a vector data
-doc2vec_df = data["review_clean"].apply(lambda x: model.infer_vector(x.split(" "))).apply(pd.Series)
-doc2vec_df.columns = ["doc2vec_vector_" + str(x) for x in doc2vec_df.columns]
-data = pd.concat([data, doc2vec_df], axis=1)
-
-
-tfidf_result = tfidf.fit_transform(data["review_clean"]).toarray()
-tfidf_df = pd.DataFrame(tfidf_result, columns = tfidf.get_feature_names())
-tfidf_df.columns = ["word_" + str(x) for x in tfidf_df.columns]
-tfidf_df.index = data.index
-data = pd.concat([data, tfidf_df], axis=1)
-
-
-
-
-
-    
 
 
 # highest positive sentiment reviews (with more than 5 words)
@@ -158,7 +136,33 @@ neu_data=data[data["nb_words"] >= 5].sort_values("neu", ascending = False)[["Rev
 neu_data=neu_data[neu_data["neu"]> 1]
 
 
-# show word clouds for pos, neg and neutral
+# show word clouds for pos, neg and neutral comments
 show_wordcloud(pos_data["review_clean"])
 show_wordcloud(neg_data["review_clean"])
 show_wordcloud(neu_data["review_clean"])
+
+#counting issue frequency in pos, neg and neu comments
+pos_issue_count=countInstancefreq(pos_data)
+neg_issue_count=countInstancefreq(neg_data)
+neu_issue_count=countInstancefreq(neu_data)
+
+posdf=pd.DataFrame.from_dict({'pos': list(pos_issue_count.keys()), 'count':list(pos_issue_count.values()) })
+negdf=pd.DataFrame.from_dict({'neg':list(neg_issue_count.keys()),
+                              'count':list(neg_issue_count.values())
+                              })
+neudf=pd.DataFrame.from_dict({'neu': list(neu_issue_count.keys()),
+                              'count': list(neu_issue_count.values())
+                              })                                         
+
+
+
+
+
+pos_fig = px.bar(posdf[posdf['count']>18], x='pos', y='count')
+neg_fig = px.bar(negdf[negdf['count']>18], x='neg', y='count')
+neu_fig = px.bar(neudf[neudf['count']>18], x='neu', y='count')
+
+pos_fig.show()
+neu_fig.show()
+neg_fig.show()
+  
